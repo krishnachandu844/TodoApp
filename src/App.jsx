@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import addNotification from "react-push-notification";
 import "./App.css";
 
 function App() {
@@ -9,6 +10,14 @@ function App() {
 
   //copy right
   let copyright = String.fromCodePoint(174);
+
+  //Reminder
+  const setReminder = (time, id) => {
+    const updatedTodos = todos.map((todo) =>
+      todo.id === id ? { ...todo, reminder: time } : todo
+    );
+    setTodos(updatedTodos);
+  };
 
   //add Todo
   const onClickAddTodo = () => {
@@ -19,6 +28,8 @@ function App() {
         id: Date.now(),
         text: newTodo,
         completed: false,
+        reminder: "",
+        reminderTriggered: false,
       };
       todos.push(newTodoItem);
       setNewTodo("");
@@ -62,11 +73,49 @@ function App() {
       toast.info("Todo Updated Successfully");
     }
   };
+  //check notification
+  useEffect(() => {
+    if ("Notification" in window) {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          console.log("Notification permission granted.");
+        }
+      });
+    }
+  }, []);
+
+  //check reminders for every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      todos.forEach((todo) => {
+        const reminderTime = new Date(todo.reminder).getTime();
+        const currentTime = new Date().getTime();
+
+        if (reminderTime <= currentTime && !todo.reminderTriggered) {
+          console.log(reminderTime);
+          triggerNotification(todo);
+          todo.reminderTriggered = true;
+        }
+      });
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [todos]);
+
+  const triggerNotification = (todo) => {
+    console.log("Hello");
+    addNotification({
+      title: "Todo Task",
+      subtitle: `Reminder ${todo.text}`,
+      message: "Reminder for your todo task",
+      theme: "darkblue",
+      native: true, // when using native, your OS will handle theming.
+    });
+  };
 
   return (
     <div className='bg-container flex flex-col justify-center items-center min-h-screen'>
-      <div className='card bg-card max-w-lg w-full rounded-2xl shadow-lg p-4 '>
-        <h1 className='heading text-3xl mb-6 ml-6 '>Todo App</h1>
+      <div className='card bg-card w-1/2 rounded-2xl shadow-lg flex flex-col'>
+        <h1 className='heading text-3xl mb-6 ml-16 '>Todo App</h1>
         <div className='flex justify-center'>
           <input
             type='text'
@@ -83,7 +132,7 @@ function App() {
           </button>
           <ToastContainer autoClose={2000} />
         </div>
-        <ul className='list-none m-3 mt-5'>
+        <ul className='list-none m-3 mt-5 ml-16 w-5/6'>
           {todos.map((todo) => (
             <li className='m-2 mt-6' key={todo.id}>
               <div className=' flex justify-between ml-5 font-semibold'>
@@ -117,6 +166,14 @@ function App() {
                   >
                     Delete
                   </button>
+                  <input
+                    type='datetime-local'
+                    className='ml-12'
+                    onChange={(e) => {
+                      const time = e.target.value;
+                      setReminder(time, todo.id);
+                    }}
+                  />
                 </div>
               </div>
             </li>
